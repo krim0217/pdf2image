@@ -1,0 +1,44 @@
+identity:
+  name: pdf2image
+  author: krim0217
+  label:
+    en_US: pdf2image
+    zh_Hans: pdf2image
+    pt_BR: pdf2image
+description:
+  human:
+    en_US: 将pdf文件的每一页都输出为一张图片
+    zh_Hans: 将pdf文件的每一页都输出为一张图片
+    pt_BR: 将pdf文件的每一页都输出为一张图片
+  llm: 将pdf文件的每一页都输出为一张图片
+parameters:
+  - name: pdf_file
+    type: file
+    required: true
+    label:
+      en_US: pdf file
+      zh_Hans: pdf文件
+      pt_BR: pdf file
+    human_description:
+      en_US: pdf file to be converted
+      zh_Hans: 要转换的pdf文件
+      pt_BR: pdf file to be converted
+    llm_description: pdf file to be converted
+    form: llm
+  - name: host_url
+    type: string
+    required: true
+    default: http://localhost:8000
+    label:
+      en_US: Host URL
+      zh_Hans: Dify 地址
+      pt_BR: Host URL
+    human_description:
+      en_US: The host URL of dify
+      zh_Hans: Dify的主机地址
+      pt_BR: The host URL of dify
+    llm_description: The host URL of dify
+    form: form
+extra:
+  python:
+    source: tools/pdf2image.py
