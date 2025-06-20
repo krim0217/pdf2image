@@ -39,13 +39,13 @@ plugins:
   tools:
     - provider/pdf2image.yaml
 meta:
-  version: 0.0.1
+  version: 0.0.3
   arch:
     - amd64
     - arm64
   runner:
     language: python
-    version: "3.12"
+    version: "3.13"
     entrypoint: main
   minimum_dify_version: null
 created_at: 2025-06-18T16:41:19.3523056+08:00

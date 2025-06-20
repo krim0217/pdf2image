@@ -108,6 +108,8 @@ class Pdf2imageTool(Tool):
             
             yield self.create_text_message("✅ 所有文件格式验证通过。开始处理...")
 
+            total_images_generated = 0
+
             for dify_file_obj in pdf_file_list:
                 yield self.create_text_message(f"⚙️ 正在处理文件: {dify_file_obj.filename}...")
                 
@@ -119,20 +121,27 @@ class Pdf2imageTool(Tool):
                 # 步骤 2: 转换
                 # 此函数如果失败会抛出 ValueError
                 image_blobs = convert_pdf_to_image_blobs(pdf_blob)
-                
+
+                total_images_generated += len(image_blobs)
+
                 yield self.create_text_message(f"✔️ 文件 '{dify_file_obj.filename}' 成功转换为 {len(image_blobs)} 张图片。")
 
                 # 步骤 3: 输出结果
                 for i, image_blob in enumerate(image_blobs):
-                    yield self.create_blob_message(
-                        blob=image_blob, 
-                        meta={
-                            "file_name": f"{dify_file_obj.filename}_page{i+1}.png",
-                            "mime_type": "image/png"
-                        }
-                    )
+                    try:
+                        yield self.create_blob_message(
+                            blob=image_blob, 
+                            meta={
+                                "file_name": f"{dify_file_obj.filename}_page{i+1}.png",
+                                "mime_type": "image/png"
+                            }
+                        )
+                        yield self.create_text_message(f"✔️ 成功输出{dify_file_obj.filename}_page{i+1}.png。")
+                    except Exception as e:
+                        yield self.create_text_message(f"❌ 输出第 {i+1} 张图片时失败: {e}")
             
-            yield self.create_text_message("🎉 所有文件处理完成！")
+            yield self.create_text_message(f"🎉 所有文件处理完成！共生成{total_images_generated}张图片。")
+            yield self.create_json_message({"total_images_generated": total_images_generated})
 
         except Exception as e:
             # 任何错误（格式、下载、转换）都会在这里被捕获，并终止执行
