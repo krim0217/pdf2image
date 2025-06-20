@@ -6,5 +6,5 @@
 
 ### Description
 
-
+Export each page of a single PDF file as an image.
 

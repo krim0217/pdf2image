@@ -111,4 +111,7 @@ class Pdf2imageTool(Tool):
         image_blobs = convert_pdf_to_image_blobs(pdf_blob)
         
         for i, image_blob in enumerate(image_blobs):
-            yield self.create_blob_message(blob=image_blob, meta={"filename": f"{dify_file_obj.filename}_page{i+1}.png", "mime_type": "image/png"})
+            yield self.create_blob_message(blob=image_blob, meta={
+                "file_name": f"{dify_file_obj.filename}_page{i+1}.png",
+                "mime_type": "image/png"
+            })

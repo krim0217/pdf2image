@@ -7,10 +7,10 @@ identity:
     pt_BR: pdf2image
 description:
   human:
-    en_US: 将pdf文件的每一页都输出为一张图片
-    zh_Hans: 将pdf文件的每一页都输出为一张图片
-    pt_BR: 将pdf文件的每一页都输出为一张图片
-  llm: 将pdf文件的每一页都输出为一张图片
+    en_US: 将单个pdf文件的每一页都输出为一张图片
+    zh_Hans: 将单个pdf文件的每一页都输出为一张图片
+    pt_BR: 将单个pdf文件的每一页都输出为一张图片
+  llm: 将单个pdf文件的每一页都输出为一张图片
 parameters:
   - name: pdf_file
     type: file
