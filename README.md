@@ -6,5 +6,4 @@
 
 ### Description
 
-Export each page of a single PDF file as an image.
-
+For each PDF file, convert every page into a separate image.

@@ -6,9 +6,9 @@ identity:
     zh_Hans: pdf2image
     pt_BR: pdf2image
   description:
-    en_US: 将单个pdf文件的每一页都输出为一张图片
-    zh_Hans: 将单个pdf文件的每一页都输出为一张图片
-    pt_BR: 将单个pdf文件的每一页都输出为一张图片
+    en_US: 将每个pdf文件的每一页都输出为一张图片
+    zh_Hans: 将每个pdf文件的每一页都输出为一张图片
+    pt_BR: 将每个pdf文件的每一页都输出为一张图片
   icon: icon.svg
 tools:
   - tools/pdf2image.yaml

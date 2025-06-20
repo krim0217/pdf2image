@@ -7,23 +7,23 @@ identity:
     pt_BR: pdf2image
 description:
   human:
-    en_US: 将单个pdf文件的每一页都输出为一张图片
-    zh_Hans: 将单个pdf文件的每一页都输出为一张图片
-    pt_BR: 将单个pdf文件的每一页都输出为一张图片
-  llm: 将单个pdf文件的每一页都输出为一张图片
+    en_US: 将每个pdf文件的每一页都输出为一张图片
+    zh_Hans: 将每个pdf文件的每一页都输出为一张图片
+    pt_BR: 将每个pdf文件的每一页都输出为一张图片
+  llm: 将每个pdf文件的每一页都输出为一张图片
 parameters:
-  - name: pdf_file
-    type: file
+  - name: pdf_files
+    type: files
     required: true
     label:
-      en_US: pdf file
-      zh_Hans: pdf文件
-      pt_BR: pdf file
+      en_US: pdf files
+      zh_Hans: pdf文件列表
+      pt_BR: pdf files
     human_description:
-      en_US: pdf file to be converted
+      en_US: pdf files to be converted
       zh_Hans: 要转换的pdf文件
-      pt_BR: pdf file to be converted
-    llm_description: pdf file to be converted
+      pt_BR: pdf files to be converted
+    llm_description: pdf files to be converted
     form: llm
   - name: host_url
     type: string

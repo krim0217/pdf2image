@@ -1,30 +1,20 @@
 from collections.abc import Generator
-from typing import Any
+from typing import Any, List, Optional
+import io
+import os
 
+import fitz  # PyMuPDF
+import requests
 from dify_plugin import Tool
 from dify_plugin.entities.tool import ToolInvokeMessage
 
-import fitz  # PyMuPDF
-import os
-from typing import List
-import requests
-import io
-from typing import Optional # 在 Python 3.10+ 中，可以直接用 | None
-
+# --- download_dify_file_content 函数保持不变 ---
 def download_dify_file_content(
     dify_file_obj: object, 
     dify_host_url: str, 
 ) -> bytes | None:
     """
     从Dify文件对象中下载文件内容到内存。
-
-    Args:
-        dify_file_obj (object): Dify文件对象，应包含 'filename' 和 'url' 属性。
-        dify_host_url (str): Dify实例的主机URL (例如 "http://127.0.0.1")。
-        http_session (requests.Session): 用于执行HTTP请求的requests会话对象。
-
-    Returns:
-        bytes | None: 成功则返回文件的二进制内容(blob)，否则返回None。
     """
     try:
         file_name_full = dify_file_obj.filename
@@ -35,7 +25,6 @@ def download_dify_file_content(
 
     cleaned_host_url = dify_host_url.rstrip('/')
     
-    # 构建完整URL
     full_url = relative_url
     if not relative_url.startswith(('http://', 'https://')):
         if relative_url.startswith('/'):
@@ -46,7 +35,7 @@ def download_dify_file_content(
     print(f"  [Downloader] 准备从URL下载: {full_url}")
     try:
         response = requests.get(full_url, timeout=60)
-        response.raise_for_status()  # 检查HTTP错误 (如 404, 500)
+        response.raise_for_status()
         blob_content = response.content
         print(f"  [Downloader] 成功下载 {len(blob_content)} bytes for file '{file_name_full}'.")
         return blob_content
@@ -61,57 +50,95 @@ def convert_pdf_to_image_blobs(
 ) -> List[bytes]:
     """
     将内存中的PDF文件内容转换为图片字节流（blobs）。
+    如果任何一页转换失败，此函数将引发一个异常，而不是返回部分结果。
 
     :param pdf_bytes: PDF文件的字节内容。
-    :param dpi: 图像的分辨率 (dots per inch)，值越高越清晰。
-    :param image_format: 输出图片的格式，如 "png", "jpeg" 等。
-    :return: 一个列表，其中每个元素都是一页PDF转换后的图片字节数据。
+    :param dpi: 图像的分辨率 (dots per inch)。
+    :param image_format: 输出图片的格式。
+    :return: 一个包含所有页面图片字节数据的列表。
+    :raises ValueError: 如果PDF的任何一页转换失败。
     """
-    # 用于存储每页图片字节数据的列表
     image_blobs = []
+    pdf_document = None  # 先声明，以便在finally块中可用
 
     try:
         # 1. 从内存中打开PDF文件
-        # 使用 fitz.open(stream=...) 来处理字节流数据
         pdf_document = fitz.open(stream=pdf_bytes, filetype="pdf")
 
         # 2. 遍历PDF的每一页
         for page_number in range(len(pdf_document)):
-            page = pdf_document.load_page(page_number)
-            
-            # 3. 将页面渲染为像素图 (Pixmap)
-            pix = page.get_pixmap(dpi=dpi)
-            
-            # 4. 将像素图转换为指定格式的图片字节流 (blob)
-            # pix.tobytes() 是获取图片blob的核心方法
-            img_data = pix.tobytes(output=image_format)
-            
-            # 5. 将图片字节流添加到列表中
-            image_blobs.append(img_data)
-            
-            print(f"成功处理页面 {page_number + 1}/{len(pdf_document)}")
+            try:
+                page = pdf_document.load_page(page_number)
+                pix = page.get_pixmap(dpi=dpi)
+                img_data = pix.tobytes(output=image_format)
+                image_blobs.append(img_data)
+                print(f"成功处理页面 {page_number + 1}/{len(pdf_document)}")
+            except Exception as e:
+                # [核心改动] 如果单页转换失败，立即构造错误信息并抛出异常
+                # 这会中断整个循环，并让上层调用者（_invoke方法）捕获到错误
+                error_message = f"处理PDF第 {page_number + 1} 页时失败: {e}"
+                print(error_message) # 在服务器日志中也打印出来
+                raise ValueError(error_message)
 
-        # 关闭PDF文档
-        pdf_document.close()
+    except fitz.errors.FitzError as e:
+        # 捕获PyMuPDF特有的打开文件等错误
+        raise ValueError(f"打开或解析PDF文件时出错: {e}")
+    finally:
+        # 3. 确保无论成功还是失败，都关闭PDF文档以释放资源
+        if pdf_document:
+            pdf_document.close()
 
-    except Exception as e:
-        print(f"处理PDF时发生错误: {e}")
-        # 如果出错，返回一个空列表
-        return []
-
+    # 只有当for循环完全成功执行后，才会到达这里
     return image_blobs
 
 class Pdf2imageTool(Tool):
     def _invoke(self, tool_parameters: dict[str, Any]) -> Generator[ToolInvokeMessage]:
-
-        dify_file_obj = tool_parameters.get('pdf_file')
+        
+        pdf_file_list = tool_parameters.get('pdf_files') 
         dify_host_url = tool_parameters.get('host_url')
 
-        pdf_blob = download_dify_file_content(dify_file_obj, dify_host_url)
-        image_blobs = convert_pdf_to_image_blobs(pdf_blob)
-        
-        for i, image_blob in enumerate(image_blobs):
-            yield self.create_blob_message(blob=image_blob, meta={
-                "file_name": f"{dify_file_obj.filename}_page{i+1}.png",
-                "mime_type": "image/png"
+        try:
+            yield self.create_text_message("▶️ 开始验证所有文件格式...")
+            for dify_file_obj in pdf_file_list:
+                if dify_file_obj.mime_type != "application/pdf":
+                    yield self.create_json_message({
+                        "result": f"Unsupported file type: {dify_file_obj.mime_type}"
+                    })
+                    raise ValueError(f"输入错误: 文件 '{dify_file_obj.filename}' 不是PDF格式。此工具仅支持处理PDF文件。")
+            
+            yield self.create_text_message("✅ 所有文件格式验证通过。开始处理...")
+
+            for dify_file_obj in pdf_file_list:
+                yield self.create_text_message(f"⚙️ 正在处理文件: {dify_file_obj.filename}...")
+                
+                # 步骤 1: 下载
+                pdf_blob = download_dify_file_content(dify_file_obj, dify_host_url)
+                if not pdf_blob:
+                    raise IOError(f"下载文件 '{dify_file_obj.filename}' 失败，请检查URL或网络连接。") # 使用IOError更语义化
+
+                # 步骤 2: 转换
+                # 此函数如果失败会抛出 ValueError
+                image_blobs = convert_pdf_to_image_blobs(pdf_blob)
+                
+                yield self.create_text_message(f"✔️ 文件 '{dify_file_obj.filename}' 成功转换为 {len(image_blobs)} 张图片。")
+
+                # 步骤 3: 输出结果
+                for i, image_blob in enumerate(image_blobs):
+                    yield self.create_blob_message(
+                        blob=image_blob, 
+                        meta={
+                            "file_name": f"{dify_file_obj.filename}_page{i+1}.png",
+                            "mime_type": "image/png"
+                        }
+                    )
+            
+            yield self.create_text_message("🎉 所有文件处理完成！")
+
+        except Exception as e:
+            # 任何错误（格式、下载、转换）都会在这里被捕获，并终止执行
+            error_msg = f"操作已中止，发生错误: {e}"
+            print(f"[ERROR] {error_msg}")
+            yield self.create_json_message({
+                "result": error_msg
             })
+            return
